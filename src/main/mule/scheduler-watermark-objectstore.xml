@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="20289c34-16cb-4250-af46-154b816964dd" />
+	<flow name="scheduler-watermark-objectstoreFlow"
+		doc:id="19113aae-2ccc-45ee-aee8-8d5b5c8d16c0">
+		<scheduler doc:name="Scheduler"
+			doc:id="86c3bbd8-c1ca-46c7-84d3-d707efc26d0b">
+			<scheduling-strategy>
+				<cron expression="0 0/1 * 1/1 * ? *" />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Start Logger"
+			doc:id="6156ec05-afea-4615-96ed-f40dd3040de0"
+			message="Scheduler started triggering...................." />
+		<os:retrieve doc:name="Retrieve" doc:id="b727bd8e-4b07-43d7-ac5c-6676ed9c21ca" key="lastRecord" objectStore="Object_store">
+			<os:default-value ><![CDATA[0 as Number]]></os:default-value>
+		</os:retrieve>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="386ca969-d120-415a-ae98-1c2fdd4340d6" variableName="lastRecord"/>
+		<db:select doc:name="Select" doc:id="b0e7593f-3425-4d8a-ac5e-48f9748ac3c7" config-ref="Database_Config">
+			<db:sql ><![CDATA[Select * from onboardingemployeedetails
+where empid>:emp_id;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	emp_id:vars.lastRecord
+}]]]></db:input-parameters>
+		</db:select>
+		<logger level="INFO" doc:name="Logger" doc:id="be301cce-7bc8-41b3-a002-b96bc6c17fcf" message="#[max(payload)]"/>
+		<choice doc:name="Choice" doc:id="3033420f-2887-483f-9003-449aa6a75451" >
+			<when expression="#[not isEmpty(payload)]">
+				<os:store doc:name="Store" doc:id="5dba5b41-3d15-4240-8b65-254615ddb270" key="lastRecord" objectStore="Object_store">
+			<os:value><![CDATA[#[max(payload.empid)]]]></os:value>
+		</os:store>
+				<logger level="INFO" doc:name="End Logger" doc:id="432bab20-f0cd-40f8-a6ee-5bde41f86021" message="Employee Details.........................#[payload]" />
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="fa036d76-4dcd-42f4-b963-8790d967db0e" message="No New Employee Details................................."/>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
